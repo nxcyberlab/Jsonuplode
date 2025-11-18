@@ -1,0 +1,37 @@
+name: Auto Update Device List
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
+    - name: Download JSON
+      run: |
+        curl -o source.json https://imranspict.hstn.me/users.json
+
+    - name: Create device list
+      run: |
+        echo '{ "devices": [' > user.json
+        cat source.json | jq -r '.[]?.device' | sed 's/^/"/' | sed 's/$/"/' | paste -sd "," - >> user.json
+        echo '] }' >> user.json
+
+    - name: Commit changes
+      run: |
+        git config user.name "AutoBot"
+        git config user.email "bot@github.com"
+        git add user.json
+        git commit -m "Auto update device list" || echo "No changes"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
