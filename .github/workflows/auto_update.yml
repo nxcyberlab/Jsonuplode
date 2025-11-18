@@ -13,6 +13,9 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v3
 
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
     - name: Download JSON
       run: |
         curl -o source.json https://imranspict.hstn.me/users.json
@@ -20,7 +23,7 @@ jobs:
     - name: Create device list
       run: |
         echo '{ "devices": [' > user.json
-        cat source.json | jq -r '.[].device' | sed 's/^/"/' | sed 's/$/"/' | paste -sd "," - >> user.json
+        cat source.json | jq -r '.[]?.device' | sed 's/^/"/' | sed 's/$/"/' | paste -sd "," - >> user.json
         echo '] }' >> user.json
 
     - name: Commit changes
