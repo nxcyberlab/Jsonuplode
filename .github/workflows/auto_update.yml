@@ -2,36 +2,33 @@ name: Auto Update Device List
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/10 * * * *" # প্রতি 10 মিনিটে রান হবে
   workflow_dispatch:
 
 jobs:
-  run:
+  update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # GitHub repo write permission
 
     steps:
-    - name: Checkout repo
+    - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Install jq
-      run: sudo apt-get install -y jq
+    - name: Run PHP Script
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
 
-    - name: Download JSON
-      run: |
-        curl -o source.json https://imranspict.hstn.me/users.json
+    - name: Execute Script
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: php php.php
 
-    - name: Create device list
-      run: |
-        echo '{ "devices": [' > user.json
-        cat source.json | jq -r '.[]?.device' | sed 's/^/"/' | sed 's/$/"/' | paste -sd "," - >> user.json
-        echo '] }' >> user.json
-
-    - name: Commit changes
+    - name: Commit & Push changes
       run: |
         git config user.name "AutoBot"
         git config user.email "bot@github.com"
-        git add user.json
-        git commit -m "Auto update device list" || echo "No changes"
+        git add users.json
+        git commit -m "Auto update device list" || echo "No changes to commit"
         git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
