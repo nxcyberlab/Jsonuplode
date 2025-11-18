@@ -1,52 +1,35 @@
-
 <?php
-// ==========================
-// CONFIGURATION
-// ==========================
 $cpanel_json_url = 'https://imranspict.hstn.me/users.json';
 $github_user = 'nxcyberlab';
 $github_repo = 'Jsonuplode';
 $github_branch = 'main';
-$github_token = getenv('GH_TOKEN'); // GitHub Actions automatically provides this token
+$github_token = getenv('GH_TOKEN');
+$github_file_path = 'users.json';
 
-$github_file_path = 'users.json'; // Repo তে কোন ফাইল আপডেট হবে
-
-// ==========================
-// 1. Fetch cPanel JSON
-// ==========================
+// Fetch JSON
 $cpanel_json = file_get_contents($cpanel_json_url);
 if (!$cpanel_json) {
-    echo "Failed to fetch cPanel JSON.\n";
+    echo "Failed to fetch JSON.\n";
     exit(1);
 }
 
 // Decode JSON
 $data = json_decode($cpanel_json, true);
-if (!$data) {
-    echo "Invalid JSON format.\n";
+if (!$data || !isset($data['devices'])) {
+    echo "Invalid JSON format or 'devices' key missing.\n";
     exit(1);
 }
 
-// ==========================
-// 2. Extract device IDs
-// ==========================
-$devices = array();
-foreach ($data as $item) {
-    if (isset($item['device'])) {
-        // Clean device ID (remove extra spaces)
-        $devices[] = trim($item['device']);
-    }
-}
+// Use devices directly
+$devices = $data['devices'];
 
 // Prepare new JSON
 $new_json = json_encode(array('devices' => $devices), JSON_PRETTY_PRINT);
 
-// ==========================
-// 3. Push to GitHub via API
-// ==========================
+// GitHub API push
 $api_url = "https://api.github.com/repos/$github_user/$github_repo/contents/$github_file_path";
 
-// First, get the SHA of existing file (required by GitHub API)
+// Get SHA
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $api_url . '?ref=' . $github_branch);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -55,18 +38,11 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array(
     "User-Agent: PHP"
 ));
 $response = curl_exec($ch);
-$info = curl_getinfo($ch);
 curl_close($ch);
-
-if (!$response) {
-    echo "Failed to get GitHub file info.\n";
-    exit(1);
-}
-
 $response_data = json_decode($response, true);
 $sha = isset($response_data['sha']) ? $response_data['sha'] : null;
 
-// Prepare payload
+// Push new content
 $payload = json_encode(array(
     'message' => 'Auto update device list',
     'content' => base64_encode($new_json),
@@ -74,7 +50,6 @@ $payload = json_encode(array(
     'sha' => $sha
 ));
 
-// Push via API
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $api_url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
